@@ -6,12 +6,12 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://cj2a7t.github.io">
-  <title>Dream Cloud（一）：云网关APISIX | CoderJiA Tech Blog</title>
+  <title>Dream-Cloud(一)云网关APISIX | CoderJiA Tech Blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="开篇：引言Dream Cloud故事的开始，如名所言，是一个梦中的云~梦中的它拥有：  跨语言 高性能 API Gateway 微服务治理能力  打造“梦中的云”，经过反复思考调研，决定依赖于Apache APISIX（下文统称为APISIX）的“服务治理”能力去DIY实现自己的云，本文为初探APISIX，从APISIX的Gateway如何实现的和其扩展性角度出发，走进APISIX的世界。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Dream Cloud（一）：云网关APISIX">
-<meta property="og:url" content="https://cj2a7t.github.io/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/index.html">
+<meta property="og:title" content="Dream-Cloud(一)云网关APISIX">
+<meta property="og:url" content="https://cj2a7t.github.io/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/index.html">
 <meta property="og:site_name" content="CoderJiA Tech Blog">
 <meta property="og:description" content="开篇：引言Dream Cloud故事的开始，如名所言，是一个梦中的云~梦中的它拥有：  跨语言 高性能 API Gateway 微服务治理能力  打造“梦中的云”，经过反复思考调研，决定依赖于Apache APISIX（下文统称为APISIX）的“服务治理”能力去DIY实现自己的云，本文为初探APISIX，从APISIX的Gateway如何实现的和其扩展性角度出发，走进APISIX的世界。">
 <meta property="og:locale" content="en_US">
@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0dde5474b99745c5a1981986676461ed~tplv-k3u1fbpfcp-watermark.image">
 <meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8d8834448a754002bb28cf320c652343~tplv-k3u1fbpfcp-watermark.image">
 <meta property="article:published_time" content="2021-01-10T13:55:10.000Z">
-<meta property="article:modified_time" content="2021-01-11T01:59:43.109Z">
+<meta property="article:modified_time" content="2021-01-11T07:24:12.410Z">
 <meta property="article:author" content="cj2a7t">
 <meta property="article:tag" content="Dream Cloud">
 <meta property="article:tag" content="apisix">
@@ -155,19 +155,19 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-Dream-Cloud（一）：云网关APISIX" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-Dream-Cloud(一)云网关APISIX" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      Dream Cloud（一）：云网关APISIX
+      Dream-Cloud(一)云网关APISIX
     </h1>
   
 
         
-        <a href="/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" class="archive-article-date">
+        <a href="/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" class="archive-article-date">
   	<time datetime="2021-01-10T13:55:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-01-10</time>
 </a>
         
@@ -350,7 +350,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://cj2a7t.github.io/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" alt="微信分享二维码">
+      <img src="//pan.baidu.com/share/qrcode?url=https://cj2a7t.github.io/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -418,9 +418,9 @@
 <script src="//imsun.github.io/gitment/dist/gitment.browser.js"></script>
 <script>
 var gitment = new Gitment({
-  id: "https://cj2a7t.github.io/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/",
-  owner: 'true',
-  repo: 'https://github.com/cj2a7t/blog_comments_repos',
+  id: "https://cj2a7t.github.io/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/",
+  owner: 'cj2a7t',
+  repo: 'blog_comments_repos',
   oauth: {
     client_id: '825ce0925ec6207d6ff2',
     client_secret: 'b868607fbcb1d76d1fed9b7032d28fcc91cb2310',
