@@ -6,15 +6,36 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://cj2a7t.github.io">
-  <title>CoderJiA Tech Blog</title>
+  <title>一次JVM内存使用率问题的排查 | CoderJiA Tech Blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="CoderJiA Tech Blog">
-<meta property="og:url" content="https://cj2a7t.github.io/index.html">
+  <meta name="description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上  服务部分线上出现Java进程会挂掉，pod重启现象。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一次JVM内存使用率问题的排查">
+<meta property="og:url" content="https://cj2a7t.github.io/2021/01/10/%E4%B8%80%E6%AC%A1JVM%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E7%8E%87%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/index.html">
 <meta property="og:site_name" content="CoderJiA Tech Blog">
+<meta property="og:description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上  服务部分线上出现Java进程会挂掉，pod重启现象。">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4f267165624c49c3879c5bc377f48fa0~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7a173b2e69db4cc1995cf1f193be369d~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/696e66a3b1ee40eab623e195d44eaf8e~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bd190c38aec046f4a24a73b701ec6b87~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/076d09b42f6141fa92e0a2c565fba86d~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fd654c525f824330872c8e242e1ad76a~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/877c2f39d85044d6bd626e4fa91acac3~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/419dd500e8ce49f9b0f82bb8ce163da8~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13d929cc36bf451fb65a13820e55919d~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/be98d67bdbbe4af0b13bda14c9150cfb~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f4624fff328f4b668861343710f34141~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/72b1e05c09e540309c1268f0018405fb~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4311b2f531b9497bbe3f17355df9be2d~tplv-k3u1fbpfcp-watermark.image">
+<meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fe26b5364e6b40cca722526366e1d946~tplv-k3u1fbpfcp-watermark.image">
+<meta property="article:published_time" content="2021-01-10T04:42:21.000Z">
+<meta property="article:modified_time" content="2021-01-11T04:44:53.354Z">
 <meta property="article:author" content="cj2a7t">
+<meta property="article:tag" content="JVM">
+<meta property="article:tag" content="Java">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4f267165624c49c3879c5bc377f48fa0~tplv-k3u1fbpfcp-watermark.image">
   
     <link rel="alternative" href="/atom.xml" title="CoderJiA Tech Blog" type="application/atom+xml">
   
@@ -143,101 +164,14 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-    <article id="post-Dream-Cloud（一）：云网关APISIX" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+            <article id="post-一次JVM内存使用率问题的排查" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/">Dream Cloud（一）：云网关APISIX</a>
-    </h1>
-  
-
-        
-        <a href="/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" class="archive-article-date">
-  	<time datetime="2021-01-10T13:55:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-01-10</time>
-</a>
-        
-        <!-- 添加代码 -->
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <h4 id="开篇：引言"><a href="#开篇：引言" class="headerlink" title="开篇：引言"></a>开篇：引言</h4><p>Dream Cloud故事的开始，如名所言，是一个梦中的云~<br>梦中的它拥有：</p>
-<ul>
-<li>跨语言</li>
-<li>高性能</li>
-<li>API Gateway</li>
-<li>微服务治理能力<br>  打造“梦中的云”，经过反复思考调研，决定依赖于Apache APISIX（下文统称为APISIX）的“服务治理”能力去DIY实现自己的云，本文为初探APISIX，从APISIX的Gateway如何实现的和其扩展性角度出发，走进APISIX的世界。<br><br>
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Dream Cloud</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">apisix</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/">查看全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-一次JVM内存使用率问题的排查" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/01/10/%E4%B8%80%E6%AC%A1JVM%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E7%8E%87%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/">一次JVM内存使用率问题的排查</a>
+    <h1 class="article-title" itemprop="name">
+      一次JVM内存使用率问题的排查
     </h1>
   
 
@@ -247,6 +181,10 @@
 </a>
         
         <!-- 添加代码 -->
+        
+          <span class="archive-article-date">
+          阅读量 <span id="busuanzi_value_page_pv"></span>
+          </span>
         
       </header>
     
@@ -258,10 +196,92 @@
 <h4 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h4><ul>
 <li><p>每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上</p>
 </li>
-<li><p>服务部分线上出现Java进程会挂掉，pod重启现象。<br><br>
-        
+<li><p>服务部分线上出现Java进程会挂掉，pod重启现象。<br><br><a id="more"></a></p>
+<h4 id="排查过程"><a href="#排查过程" class="headerlink" title="排查过程"></a>排查过程</h4><blockquote>
+<p>根据上面出现的现象我暂定了一下排查过程</p>
+</blockquote>
+</li>
+<li><p>查看K8S集群监控的内存情况</p>
+</li>
+<li><p>查看该服务pod的资源分配情况</p>
+</li>
+<li><p>查看Pod内Java服务进程的启动JVM参数</p>
+</li>
+<li><p>查看内存回收情况，观察是否出现明显异常</p>
+</li>
+<li><p>使用jmap导出dump文件进行分析</p>
+</li>
+<li><p>根据dump文件分析出的原因进行确定问题代码位置</p>
+</li>
+<li><p>优化后正确的内存使用率趋势</p>
+<h4 id="1-查看K8S集群监控的内存情况"><a href="#1-查看K8S集群监控的内存情况" class="headerlink" title="1. 查看K8S集群监控的内存情况"></a>1. 查看K8S集群监控的内存情况</h4><p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4f267165624c49c3879c5bc377f48fa0~tplv-k3u1fbpfcp-watermark.image"><br>这是一个<strong>问题</strong>服务的K8S集群监控内存走势图。从图中我们可以看出，内存即使有小的波动，但使用率一直在上升趋势。</p>
+<h4 id="2-查看K8S对该pod的资源分配情况"><a href="#2-查看K8S对该pod的资源分配情况" class="headerlink" title="2.查看K8S对该pod的资源分配情况"></a>2.查看K8S对该pod的资源分配情况</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># 执行命令查看该pod的资源分配情况</span><br><span class="line">kubectl --kubeconfig $&#123;source_config&#125; -n $&#123;namespace&#125; describe pod $&#123;pod_name&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7a173b2e69db4cc1995cf1f193be369d~tplv-k3u1fbpfcp-watermark.image"></p>
+</li>
+</ul>
+<p>请求内存大小和限制都是8G内存</p>
+<h4 id="3-查看Pod内Java服务进程的启动JVM参数"><a href="#3-查看Pod内Java服务进程的启动JVM参数" class="headerlink" title="3.查看Pod内Java服务进程的启动JVM参数"></a>3.查看Pod内Java服务进程的启动JVM参数</h4><p>如果是SpringBoot项目内嵌Web容器可以先进入到pod内，然后使用使用下面两个参数查看JVM参数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 查看已经启动的java服务参数</span><br><span class="line">ps -ef | grep java</span><br><span class="line"># 使用jinfo查看</span><br><span class="line">jinfo -flags $&#123;pid&#125;</span><br></pre></td></tr></table></figure>
+<p>我这的服务都是<code>-Xms5769m -Xmx5769m -Xmn2884m</code> 其他参数省略，到这就有问题点出现了，我们的内存监控图显示，当前使用在7.13GB，可是我们JVM设置堆的内存远小于这个值。</p>
+<h4 id="4-查看内存回收情况，观察是否出现明显异常"><a href="#4-查看内存回收情况，观察是否出现明显异常" class="headerlink" title="4.查看内存回收情况，观察是否出现明显异常"></a>4.查看内存回收情况，观察是否出现明显异常</h4><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/696e66a3b1ee40eab623e195d44eaf8e~tplv-k3u1fbpfcp-watermark.image"><br>该容器总体内存使用情况正常，波动代表着回收前后内存。</p>
+<p>你也可以使用其他jvm命令在pod内查看某一刻的内存情况，或者可以直接看gc的log，进行整体分析</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 每refresh_time毫秒打印一次内存使用情况gc次数等</span><br><span class="line">jstat -gc $&#123;pid&#125; $&#123;refresh_time&#125;</span><br><span class="line"># 你查看时刻的内存使用情况</span><br><span class="line">jmap -heap $&#123;pid&#125;</span><br></pre></td></tr></table></figure>
+<p>我们的jvm内存是正常的值，说明有堆外的内存被占用，使用<code>top</code>查看下<br><img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bd190c38aec046f4a24a73b701ec6b87~tplv-k3u1fbpfcp-watermark.image"><br>这里有个坑，<code>used</code>的总值是集群pod的值，并不是该pod的，当时排查这个点的时候差点以为<code>Prometheus</code>的探针有问题，质疑<code>Grafana</code>呈现的监控数据准确性。仔细观察后，发现RES值与内存监控图该时刻内存的7.13G是近似的，说明探针没问题。分析到这的时候，我得出结论，该服务堆内内存情况正常，可能是堆外内存使用有问题？带着这个疑问继续排查。</p>
+<h4 id="5-使用jmap导出dump文件进行分析"><a href="#5-使用jmap导出dump文件进行分析" class="headerlink" title="5.使用jmap导出dump文件进行分析"></a>5.使用jmap导出dump文件进行分析</h4><p>先生成该时刻的dump文件</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jmap -dump:live,format&#x3D;b,file&#x3D;$&#123;dump_name&#125;.bin $&#123;PID&#125;</span><br></pre></td></tr></table></figure>
+<p>下载<a target="_blank" rel="noopener" href="https://www.eclipse.org/mat/downloads.php">MAT</a>，打开进行dump文件分析，选择<code>Leak Suspects</code>。<br><img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/076d09b42f6141fa92e0a2c565fba86d~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>可以看到539个线程对象，为何该服务会创建这么多呢？<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fd654c525f824330872c8e242e1ad76a~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>打开thread_overview<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/877c2f39d85044d6bd626e4fa91acac3~tplv-k3u1fbpfcp-watermark.image"><br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/419dd500e8ce49f9b0f82bb8ce163da8~tplv-k3u1fbpfcp-watermark.image"><br>XNIO-2前缀这个线程池，成功引起了我的注意，我过滤下后发现这个线程创建了320个，一直阻塞的存活着。<br><img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13d929cc36bf451fb65a13820e55919d~tplv-k3u1fbpfcp-watermark.image"><br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/be98d67bdbbe4af0b13bda14c9150cfb~tplv-k3u1fbpfcp-watermark.image"><br>I/O-dispatch前缀这个线程池，也成功引起了我的注意，我过滤下后发现这个线程创建了120个，一直阻塞的存活着。</p>
+<h4 id="6-根据dump文件分析出的原因进行确定问题代码位置"><a href="#6-根据dump文件分析出的原因进行确定问题代码位置" class="headerlink" title="6.根据dump文件分析出的原因进行确定问题代码位置"></a>6.根据dump文件分析出的原因进行确定问题代码位置</h4><p>XNIO-2线程池，好熟悉的名字，它好像在对我唱：我们好像在哪见过，你记得吗？emmmm，我真想不起来，但我知道你肯定不是我定义的线程池，因为我都会指定名字。那就<code>grep</code>服务日志，我发现<code>undertow</code>容器在启动的时候会打印。</p>
+<p>打开<code>undertow</code>容器的源码：</p>
+<p><img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f4624fff328f4b668861343710f34141~tplv-k3u1fbpfcp-watermark.image"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ioThreads &#x3D; 默认值得逻辑核数</span><br><span class="line">workerThreads &#x3D; ioThreads * 8</span><br></pre></td></tr></table></figure>
+<p>我们上面看k8s指定该pod的cpu为1C，按照上面320个线程，那应该是40C。带着这个疑问登录pod，使用<code>lscpu</code>查看下CPU的逻辑核数。<br><img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/72b1e05c09e540309c1268f0018405fb~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>发现逻辑核数确实是40C，问了<code>CD</code>组，他们说这块确实有的pod启动时候，会出现这种情况，读取的pod逻辑核数为这个服务整体资源池的逻辑核。看了下服务的配置文件，是没有指定undertow的线程大小的，所以配置下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">server.undertow.io-threads&#x3D; io线程数</span><br><span class="line">server.undertow.worker-threads&#x3D; 工作线程数</span><br></pre></td></tr></table></figure>
+
+<p>epollWait的调用栈，一看就是nio相关，思考了下服务内部，除了undertow之外，只有rpc会使用，看了下rpc的配置，worker默认指定了120，这显然是不合理，将其降为16。</p>
+<p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4311b2f531b9497bbe3f17355df9be2d~tplv-k3u1fbpfcp-watermark.image"></p>
+<h4 id="7-优化后正确的内存使用率趋势"><a href="#7-优化后正确的内存使用率趋势" class="headerlink" title="7.优化后正确的内存使用率趋势"></a>7.优化后正确的内存使用率趋势</h4><blockquote>
+<p>上线后重启，观察了几天，整体服务内存使用情况已经趋于正常。</p>
+</blockquote>
+<p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fe26b5364e6b40cca722526366e1d946~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>整体趋势为恒小于JVM配置的5.7G的内存，而且整体没有再出现1那种那种趋于递增的情况。</p>
+<h4 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h4><ul>
+<li>本文介绍了只是一种比较特殊的情况，获取pod核数不正常的情况，导致一直在申请堆外内存。</li>
+<li>对于NIO这块为什么会park的等待新消费，可以看下我之前的NIO线程模型文章(<a target="_blank" rel="noopener" href="https://juejin.im/post/6844903814114328589">《深入的聊聊NIO》</a>)。</li>
+<li>JVM问题排查的思路，我觉得大体上都是这个过程，只不过在有可能在某一步就提前确定了问题，比如频繁GC，或者老年代对象过多等等问题可能在分析GC的log时候就已经确认了，但是具体定位代码一定是从dump文件分析出来的。</li>
+<li>这次调整后，整体内存资源使用情况降了接近40%的内存，为我们部门省了很多资源。</li>
+</ul>
+<h4 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h4><ul>
+<li>MAT下载：<a target="_blank" rel="noopener" href="https://www.eclipse.org/mat/downloads.php">https://www.eclipse.org/mat/downloads.php</a></li>
+<li>深入的聊聊 Java NIO：<a target="_blank" rel="noopener" href="https://juejin.im/post/6844903814114328589">https://juejin.im/post/6844903814114328589</a></li>
+<li>Netty底层主要组件之间的联系：<a target="_blank" rel="noopener" href="https://juejin.im/post/6844903858980782087">https://juejin.im/post/6844903858980782087</a></li>
+</ul>
+
       
 
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
       
     </div>
     <div class="article-info article-info-index">
@@ -285,16 +305,79 @@
       
 
       
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/01/10/%E4%B8%80%E6%AC%A1JVM%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E7%8E%87%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/">查看全文 >></a>
-        </p>
-      
 
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=https://cj2a7t.github.io/2021/01/10/%E4%B8%80%E6%AC%A1JVM%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E7%8E%87%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
       
       <div class="clearfix"></div>
     </div>
   </div>
 </article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/2021/01/10/Dream-Cloud%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9A%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          Dream Cloud（一）：云网关APISIX
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
 
 <aside class="wrap-side-operation">
     <div class="mod-side-operation">
@@ -314,8 +397,14 @@
 
 
 
+  
 
   
+
+  
+
+  
+
   
 
 
@@ -348,8 +437,8 @@
     <script>
 	var yiliaConfig = {
 		mathjax: false,
-		isHome: true,
-		isPost: false,
+		isHome: false,
+		isPost: true,
 		isArchive: false,
 		isTag: false,
 		isCategory: false,
