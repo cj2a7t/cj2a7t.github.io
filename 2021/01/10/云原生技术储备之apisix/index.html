@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0dde5474b99745c5a1981986676461ed~tplv-k3u1fbpfcp-watermark.image">
 <meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8d8834448a754002bb28cf320c652343~tplv-k3u1fbpfcp-watermark.image">
 <meta property="article:published_time" content="2021-01-10T13:55:10.000Z">
-<meta property="article:modified_time" content="2021-01-12T09:11:29.275Z">
+<meta property="article:modified_time" content="2021-01-12T09:13:42.904Z">
 <meta property="article:author" content="cj2a7t">
 <meta property="article:tag" content="Cloud Native">
 <meta property="article:tag" content="apisix">
@@ -182,6 +182,8 @@
     <div class="article-entry" itemprop="articleBody">
       
         <h4 id="APISIX是什么？"><a href="#APISIX是什么？" class="headerlink" title="APISIX是什么？"></a>APISIX是什么？</h4><p>APISIX是一个动态、实时、高性能的 API 网关，基于 Nginx 网络库和OpenResty实现，底层存储使用etcd，提供负载均衡、动态上游、限流、服务熔断、身份认证等丰富的流量接入管理功能。另外因其原生兼容多种Remote协议（如gRpc）代理特性，所以它不仅可以作为南北流量入口，还可以作为东西流量的代理，并与语言平台无关。<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/73f5ffab540e4097a64e2769120985b8~tplv-k3u1fbpfcp-watermark.image"><br>通过APISIX的官方图示可以发现，当CLIENT请求进入到DP后，在转发到上游之前会经过一系列插件（如Rate limit）进行处理，而且这些插件是可配置的，并且可以根据业务场景在<strong>请求的各个阶段</strong>实现定制化插件。在了解APISIX如何对请求各个阶段如何处理前，需要了解下它的底层OpenResty处理请求的流程。</p>
+<a id="more"></a>
+
 <h4 id="了解OpenResty处理请求流程"><a href="#了解OpenResty处理请求流程" class="headerlink" title="了解OpenResty处理请求流程"></a>了解OpenResty处理请求流程</h4><p>OpenResty的核心是基于NGINX的一个C模块（lua-nginx-module），该模块将LuaJIT嵌入到NGINX服务器中，并对外提供一套完整的Lua API，很多开发人员对OpenResty并不熟悉，所有了解它的请求处理流程，可以参考Zuul来理解。</p>
 <h5 id="先来回顾下ZuulFilter处理请求流程"><a href="#先来回顾下ZuulFilter处理请求流程" class="headerlink" title="先来回顾下ZuulFilter处理请求流程"></a>先来回顾下ZuulFilter处理请求流程</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">CustomFilter</span> <span class="keyword">extends</span> <span class="title">ZuulFilter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">filterType</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// 本文主要关注过滤器类型</span></span><br><span class="line">        <span class="keyword">return</span> PRE_TYPE;</span><br><span class="line">    &#125;</span><br><span class="line">  	<span class="comment">// 省略...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>filterType：返回一个字符串代表过滤器的类型，在zuul中定义了四种不同生命周期的过滤器类型，具体如下：</p>
