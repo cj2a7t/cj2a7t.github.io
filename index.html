@@ -145,19 +145,19 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-Dream-Cloud(一)云网关APISIX" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+    <article id="post-云原生技术储备之apisix" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/">Dream-Cloud(一)云网关APISIX</a>
+      <a class="article-title" href="/2021/01/10/%E4%BA%91%E5%8E%9F%E7%94%9F%E6%8A%80%E6%9C%AF%E5%82%A8%E5%A4%87%E4%B9%8Bapisix/">云原生技术储备之apisix</a>
     </h1>
   
 
         
-        <a href="/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/" class="archive-article-date">
+        <a href="/2021/01/10/%E4%BA%91%E5%8E%9F%E7%94%9F%E6%8A%80%E6%9C%AF%E5%82%A8%E5%A4%87%E4%B9%8Bapisix/" class="archive-article-date">
   	<time datetime="2021-01-10T13:55:10.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-01-10</time>
 </a>
         
@@ -167,13 +167,75 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h4 id="开篇：引言"><a href="#开篇：引言" class="headerlink" title="开篇：引言"></a>开篇：引言</h4><p>Dream Cloud故事的开始，如名所言，是一个梦中的云~<br>梦中的它拥有：</p>
+        <h4 id="APISIX是什么？"><a href="#APISIX是什么？" class="headerlink" title="APISIX是什么？"></a>APISIX是什么？</h4><p>APISIX是一个动态、实时、高性能的 API 网关，基于 Nginx 网络库和OpenResty实现，底层存储使用etcd，提供负载均衡、动态上游、限流、服务熔断、身份认证等丰富的流量接入管理功能。另外因其原生兼容多种Remote协议（如gRpc）代理特性，所以它不仅可以作为南北流量入口，还可以作为东西流量的代理，并与语言平台无关。<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/73f5ffab540e4097a64e2769120985b8~tplv-k3u1fbpfcp-watermark.image"><br>通过APISIX的官方图示可以发现，当CLIENT请求进入到DP后，在转发到上游之前会经过一系列插件（如Rate limit）进行处理，而且这些插件是可配置的，并且可以根据业务场景在<strong>请求的各个阶段</strong>实现定制化插件。在了解APISIX如何对请求各个阶段如何处理前，需要了解下它的底层OpenResty处理请求的流程。</p>
+<h4 id="了解OpenResty处理请求流程"><a href="#了解OpenResty处理请求流程" class="headerlink" title="了解OpenResty处理请求流程"></a>了解OpenResty处理请求流程</h4><p>OpenResty的核心是基于NGINX的一个C模块（lua-nginx-module），该模块将LuaJIT嵌入到NGINX服务器中，并对外提供一套完整的Lua API，很多开发人员对OpenResty并不熟悉，所有了解它的请求处理流程，可以参考Zuul来理解。</p>
+<h5 id="先来回顾下ZuulFilter处理请求流程"><a href="#先来回顾下ZuulFilter处理请求流程" class="headerlink" title="先来回顾下ZuulFilter处理请求流程"></a>先来回顾下ZuulFilter处理请求流程</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">CustomFilter</span> <span class="keyword">extends</span> <span class="title">ZuulFilter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">filterType</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// 本文主要关注过滤器类型</span></span><br><span class="line">        <span class="keyword">return</span> PRE_TYPE;</span><br><span class="line">    &#125;</span><br><span class="line">  	<span class="comment">// 省略...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>filterType：返回一个字符串代表过滤器的类型，在zuul中定义了四种不同生命周期的过滤器类型，具体如下：</p>
 <ul>
-<li>跨语言</li>
-<li>高性能</li>
-<li>API Gateway</li>
-<li>微服务治理能力<br>  打造“梦中的云”，经过反复思考调研，决定依赖于Apache APISIX（下文统称为APISIX）的“服务治理”能力去DIY实现自己的云，本文为初探APISIX，从APISIX的Gateway如何实现的和其扩展性角度出发，走进APISIX的世界。<br><br>
-        
+<li>pre：可以在请求被路由之前调用</li>
+<li>route：在路由请求时候被调用</li>
+<li>post：在route和error过滤器之后被调用</li>
+<li>error：处理请求时发生错误时被调用</li>
+</ul>
+<p>ZuulFilter的请求生命周期可以简单归纳为下图：</p>
+<p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9e4905c0fef54f7b970bb2630d2c316b~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>通过上图我们可以了解到，Zuul通过<a target="_blank" rel="noopener" href="http://corej2eepatterns.com/InterceptingFilter.htm">拦截过滤模式</a>，可以自定义Filter在每个阶段去实现自己的定制化扩展。</p>
+<h5 id="OpenResty执行流程"><a href="#OpenResty执行流程" class="headerlink" title="OpenResty执行流程"></a>OpenResty执行流程</h5><p>由于 Nginx 把一个请求分成了很多阶段，第三方模块就可以根据自己的行为，挂载到不同阶段处理达到目的。OpenResty 也有 11 个 *_by_lua指令，它们和 Nginx 阶段的关系如下图所示：</p>
+<p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ea8e93e8162f4fb3915e3d8a64b98b6c~tplv-k3u1fbpfcp-watermark.image"></p>
+<p>通过类比，可以了解到，相较于Zuul，OpenResty借助于Nginx更细粒度划分一个请求每个阶段，并且在每个阶段都可以定制自己的Lua代码完成自定义扩展功能。</p>
+<h4 id="APISIX处理请求流程"><a href="#APISIX处理请求流程" class="headerlink" title="APISIX处理请求流程"></a>APISIX处理请求流程</h4><ul>
+<li><p>首先，会根据请求的方法、uri、host、请求头等条件，去路由规则中进行匹配。如果命中了某条路由规则，就会从 etcd 中获取对应的插件列表。</p>
+</li>
+<li><p>然后，和本地开启的插件列表进行交集，得到最终可以运行的插件列表。</p>
+</li>
+<li><p>再接着，根据插件的优先级，逐个运行插件。</p>
+</li>
+<li><p>最后，根据上游的健康检查和负载均衡算法，把这个请求发送给上游。<br>  <img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0dde5474b99745c5a1981986676461ed~tplv-k3u1fbpfcp-watermark.image"><br>  APISIX将我们在Nginx中的配置抽象为route和upstream，将自定义扩展插件抽象为plugin。相较于其他主流网关Kong（Postgres、Cassandra）和Orange（MySQL）不同，APISIX将数据存储到etcd中，优势也很明显：</p>
+</li>
+<li><p>API网关的配置数据每秒钟的变化次数很少，etcd在性能上足够的。</p>
+</li>
+<li><p>最小化够用并且更贴近K8s原则，集群和动态伸缩方面，更是etcd的天生的优势，是关系型数据库完全不能媲美的。</p>
+</li>
+<li><p>etcd还具备watch的接口，不用轮询去获取变更，而且本身具备服务发现应用场景，是Cassandra不具备的。<br>  <img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8d8834448a754002bb28cf320c652343~tplv-k3u1fbpfcp-watermark.image"></p>
+</li>
+</ul>
+<blockquote>
+<p>注：APISIX官方文档说将一个Nginx的代理配置抽象为Route、Service、Upstream，但实际使用过程中我发现，并未有Service层抽象，这点也和Kong的实现有点区别。</p>
+</blockquote>
+<h4 id="APISIX实现原理"><a href="#APISIX实现原理" class="headerlink" title="APISIX实现原理"></a>APISIX实现原理</h4><p>通过了解APISIX处理请求流程，可以对APISIX的网关实现已经有了个总体认识，笔者之前在公司从0到1设计实现一个API管理项目（当时使用的Kong）。在实际研发过程中发现，类似基于OpenResty实现的网关，实现方式大体相同，下面来探索下APISIX实现原理。</p>
+<h5 id="Nginx-配置"><a href="#Nginx-配置" class="headerlink" title="Nginx 配置"></a>Nginx 配置</h5><figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="comment"># 省略...</span></span><br><span class="line">    <span class="attribute">listen</span> <span class="number">9080</span>;</span><br><span class="line">    <span class="section">init_worker_by_lua_block</span> &#123;</span><br><span class="line">        apisix.http_init_worker()</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="attribute">location</span> / &#123;</span><br><span class="line">        <span class="section">access_by_lua_block</span> &#123;</span><br><span class="line">            apisix.http_access_phase()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="section">header_filter_by_lua_block</span> &#123;</span><br><span class="line">            apisix.http_header_filter_phase()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="section">body_filter_by_lua_block</span> &#123;</span><br><span class="line">            apisix.http_body_filter_phase()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="section">log_by_lua_block</span> &#123;</span><br><span class="line">            apisix.http_log_phase()</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>APISIX监听了 9080 端口，并通过 location / 的方式，把这个端口的所有请求都拦截下来，并依次通过 access、rewrite、header filter、body filter 和 log 这几个阶段进行处理，在每个阶段中都会去调用对应的插件函数。其中， rewrite 阶段便是在 apisix.http_access_phase 函数中合并处理的。</p>
+<h5 id="APISIX初始化"><a href="#APISIX初始化" class="headerlink" title="APISIX初始化"></a>APISIX初始化</h5><figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.http_init_worker</span><span class="params">()</span></span></span><br><span class="line"><span class="comment">-- 分别初始化路由、服务和插件这三个最重要的部分</span></span><br><span class="line">    router.init_worker()</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&quot;apisix.http.service&quot;</span>).init_worker()</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&quot;apisix.plugin&quot;</span>).init_worker()</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+<p>APISIX初始化放在了 init_worker 阶段来处理，这其中包含了读取各项配置参数、预制 etcd 中的目录、从 etcd 中获取插件列表、对于插件按照优先级进行排序等。</p>
+<h5 id="匹配路由"><a href="#匹配路由" class="headerlink" title="匹配路由"></a>匹配路由</h5><figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> match_opts = &#123;&#125;</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.match</span><span class="params">(api_ctx)</span></span></span><br><span class="line">    <span class="comment">-- 从 ctx 中获取请求的参数，作为路由的判断条件</span></span><br><span class="line">    match_opts.method = api_ctx.var.method</span><br><span class="line">    match_opts.host = api_ctx.var.host</span><br><span class="line">    match_opts.remote_addr = api_ctx.var.remote_addr</span><br><span class="line">    match_opts.vars = api_ctx.var</span><br><span class="line">    <span class="comment">-- 调用路由的判断函数 </span></span><br><span class="line">    <span class="keyword">local</span> ok = uri_router:dispatch(api_ctx.var.uri, match_opts, api_ctx)</span><br><span class="line">    <span class="comment">-- 没有命中路由就直接返回 404 </span></span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span></span><br><span class="line">        <span class="keyword">return</span> core.response.<span class="built_in">exit</span>(<span class="number">404</span>)</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+<p>在最开始的 access 阶段里面，APISIX首先需要做的就是匹配路由，根据请求中携带 uri、host、args、cookie 等，通过lua-resty-radixtree来和已经设置好的路由规则进行匹配，如果没有命中，就说明这个请求并没有设置与之对应的上游，就会直接返回 404。</p>
+<h5 id="加载和过滤插件"><a href="#加载和过滤插件" class="headerlink" title="加载和过滤插件"></a>加载和过滤插件</h5><figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> plugins = core.tablepool.fetch(<span class="string">&quot;plugins&quot;</span>, <span class="number">32</span>, <span class="number">0</span>)</span><br><span class="line"><span class="comment">-- etcd 中的插件列表和本地配置文件中的插件列表进行交集运算 </span></span><br><span class="line">api_ctx.plugins = plugin.filter(route, plugins)</span><br><span class="line"><span class="comment">-- 依次运行插件在 rewrite 和 access 阶段挂载的函数 </span></span><br><span class="line">run_plugin(<span class="string">&quot;rewrite&quot;</span>, plugins, api_ctx)</span><br><span class="line">run_plugin(<span class="string">&quot;access&quot;</span>, plugins, api_ctx)</span><br></pre></td></tr></table></figure>
+<p>如果路由可以命中，就会走到过滤插件和加载插件的步骤，这也是 APISIX的核心。</p>
+<h5 id="运行特定阶段插件"><a href="#运行特定阶段插件" class="headerlink" title="运行特定阶段插件"></a>运行特定阶段插件</h5><figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> <span class="function"><span class="keyword">function</span> <span class="title">run_plugin</span><span class="params">(phase, plugins, api_ctx)</span></span></span><br><span class="line">    <span class="keyword">for</span> i = <span class="number">1</span>, #plugins, <span class="number">2</span> <span class="keyword">do</span></span><br><span class="line">        <span class="keyword">local</span> phase_fun = plugins[i][phase]</span><br><span class="line">        <span class="keyword">if</span> phase_fun <span class="keyword">then</span></span><br><span class="line">            <span class="comment">-- 最核心的调用代码 </span></span><br><span class="line">            phase_fun(plugins[i + <span class="number">1</span>], api_ctx)</span><br><span class="line">        <span class="keyword">end</span></span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="keyword">return</span> api_ctx</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+<p>在每个阶段的最后，APISIX会把这些过滤好的插件，按照优先级逐个运行。</p>
+<h5 id="转发上游"><a href="#转发上游" class="headerlink" title="转发上游"></a>转发上游</h5><p>upstream这个阶段处理较为特殊，和其他阶段处理起来略微有些不同，通过nginx.conf 将所有请求转发到upstream，然后通过balancer_by_lua_block实现定制化。</p>
+<ul>
+<li><p><strong>nginx.conf</strong></p>
+  <figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">http</span> &#123;</span><br><span class="line">    <span class="comment"># 省略...</span></span><br><span class="line">    <span class="attribute">upstream</span> apisix_backend &#123;</span><br><span class="line">        <span class="comment"># 省略...</span></span><br><span class="line">        <span class="section">balancer_by_lua_block</span> &#123;</span><br><span class="line">            apisix.http_balancer_phase()</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="section">server</span> &#123;</span><br><span class="line">        // 省略...</span><br><span class="line">        <span class="attribute">set</span> $upstream_scheme <span class="string">&#x27;http&#x27;</span>;</span><br><span class="line">        <span class="attribute">set</span> $upstream_uri <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        <span class="attribute">location</span> / &#123;</span><br><span class="line">            <span class="comment"># 省略...</span></span><br><span class="line">            <span class="attribute">proxy_pass</span> $upstream_scheme://apisix_backend$upstream_uri;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p><strong>balancer.lua</strong></p>
+  <figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> balancer = <span class="built_in">require</span>(<span class="string">&quot;ngx.balancer”)</span></span><br><span class="line"><span class="string">function _M.run(route, ctx) </span></span><br><span class="line"><span class="string">    -- 自定义实现的负载均衡策略</span></span><br><span class="line"><span class="string">    local server, err = pick_server(route, ctx)</span></span><br><span class="line"><span class="string">    -- 调用ngx balancer完成转发</span></span><br><span class="line"><span class="string">    local ok, err = balancer.set_current_peer(server.host, server.port)</span></span><br><span class="line"><span class="string">end</span></span><br></pre></td></tr></table></figure>
+<h4 id="APISIX自定义插件"><a href="#APISIX自定义插件" class="headerlink" title="APISIX自定义插件"></a>APISIX自定义插件</h4></li>
+</ul>
+<p>通过上面的了解，APISIX借助于OpenResty将阶段的划分，扩展实现APISIX的功能。APISIX用户可以使用自定义插件的方式，在各个阶段定制自己的业务逻辑。</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> plugin_name = <span class="string">&quot;example-plugin&quot;</span></span><br><span class="line"><span class="keyword">local</span> _M = &#123;</span><br><span class="line">    version = <span class="number">0.1</span>,</span><br><span class="line">    priority = <span class="number">0</span>,</span><br><span class="line">    name = plugin_name,</span><br><span class="line">    schema = schema,                     <span class="comment">-- 用于校验</span></span><br><span class="line">    metadata_schema = metadata_schema,   <span class="comment">-- 元数据</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.init</span><span class="params">()</span></span></span><br><span class="line">    <span class="comment">-- call this function when plugin is loaded</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.rewrite</span><span class="params">(conf, ctx)</span></span></span><br><span class="line">    <span class="comment">-- implements logic</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.access</span><span class="params">(conf, ctx)</span></span></span><br><span class="line">    <span class="comment">-- implements logic</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.head_filter</span><span class="params">(conf, ctx)</span></span></span><br><span class="line">    <span class="comment">-- implements logic</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.body_filter</span><span class="params">(conf, ctx)</span></span></span><br><span class="line">    <span class="comment">-- implements logic</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.log</span><span class="params">(conf, ctx)</span></span></span><br><span class="line">    <span class="comment">-- implements logic</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_M.destory</span><span class="params">()</span></span></span><br><span class="line">    <span class="comment">-- call this function when plugin is unloaded</span></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+<h4 id="结篇：展望"><a href="#结篇：展望" class="headerlink" title="结篇：展望"></a>结篇：展望</h4><ul>
+<li>展望一（APISIX Over Envoy）：自己的拙见畅谈下APISIX在云原生领域的未来，云原生应用涉及容器技术、微服务、可持续交付、DevOps等。微服务领域可谓是“百花齐放”，很多公司，在跨语言服务治理层面依旧是难题，各个语言服务治理方案不统一，各种语言特有的治理组件散落在云应用中，并未形成体系化。当今新一代微服务治理Service Mesh盛行，其解决服务治理与业务代码强耦合（如SpringCloud）以及跨语言场景服务治理不统一的痛点。Service Mesh的实现先驱是Linkerd，主流目前是Istio。本文大篇幅介绍APISIX的网关，为何提及Istio？原因是Istio的数据面默认使用Envoy来实现Sidecar之间的通信（xDS），在Istio Envoy本身是服务流量代理，但是其二次开发成文高也是其劣势。APISIX是否可以整合Envoy（替换其Nginx），将自己强大的已有插件功能减少二次开发成本，也可以借助Lua的简易性快速实现插件完成扩展。</li>
+<li>展望二（APISIX Ingress Controller）：K8s中Ingress的一种实现是基于Nginx，那是否可以使用APISIX进行替换，作为南北流量大入口，借助插件机制完成更多功能。</li>
+<li>展望三：（Dream Cloud）：Istio中Sidecar之间代理原本流量请求，必然会造成性能损耗，那是否会有其他方式呢？未完待续~</li>
+</ul>
+<h4 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h4><ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/apache/apisix-ingress-controller">apisix ingress controller</a></li>
+<li><a target="_blank" rel="noopener" href="https://apisix.apache.org/blog/">初探Kubernetes Services APIs</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/apache/apisix/blob/master/README_CN.md">APISIX文档</a></li>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/intro/100028301">OpenResty从入门到实战</a></li>
+<li><a target="_blank" rel="noopener" href="http://corej2eepatterns.com/InterceptingFilter.htm">拦截过滤设计模式</a></li>
+</ul>
+
       
 
       
@@ -186,7 +248,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Dream Cloud</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">Cloud Native</a>
         		</li>
       		 
         		<li class="article-tag-list-item">
@@ -200,7 +262,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2021/01/10/Dream-Cloud(%E4%B8%80)%E4%BA%91%E7%BD%91%E5%85%B3APISIX/">查看全文 >></a>
+          <a class="article-more-a" href="/2021/01/10/%E4%BA%91%E5%8E%9F%E7%94%9F%E6%8A%80%E6%9C%AF%E5%82%A8%E5%A4%87%E4%B9%8Bapisix/">查看全文 >></a>
         </p>
       
 
@@ -422,19 +484,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
             
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Dream Cloud</a>
-              </li>
-            
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">apisix</a>
-              </li>
-            
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">JVM</a>
               </li>
             
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">Java</a>
+              </li>
+            
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">Cloud Native</a>
+              </li>
+            
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">apisix</a>
               </li>
             
             <div class="clearfix"></div>
