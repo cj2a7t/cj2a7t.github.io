@@ -8,12 +8,12 @@
   <link rel="dns-prefetch" href="https://cj2a7t.github.io">
   <title>一次JVM内存使用率问题的排查 | CoderJiA Tech Blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上  服务部分线上出现Java进程会挂掉，pod重启现象。">
+  <meta name="description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上">
 <meta property="og:type" content="article">
 <meta property="og:title" content="一次JVM内存使用率问题的排查">
 <meta property="og:url" content="https://cj2a7t.github.io/2021/01/10/%E4%B8%80%E6%AC%A1JVM%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E7%8E%87%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/index.html">
 <meta property="og:site_name" content="CoderJiA Tech Blog">
-<meta property="og:description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上  服务部分线上出现Java进程会挂掉，pod重启现象。">
+<meta property="og:description" content="近几周，组内经常收到一些服务集群的内存监控报警，上周leader决定进行一次问题排查，这个任务正好到了我手上，之前这方面的经验很少，借着这个机会，把书本上的“知识”结合实践，提炼成一篇文章。  问题描述 每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4f267165624c49c3879c5bc377f48fa0~tplv-k3u1fbpfcp-watermark.image">
 <meta property="og:image" content="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7a173b2e69db4cc1995cf1f193be369d~tplv-k3u1fbpfcp-watermark.image">
@@ -30,7 +30,7 @@
 <meta property="og:image" content="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4311b2f531b9497bbe3f17355df9be2d~tplv-k3u1fbpfcp-watermark.image">
 <meta property="og:image" content="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fe26b5364e6b40cca722526366e1d946~tplv-k3u1fbpfcp-watermark.image">
 <meta property="article:published_time" content="2021-01-10T04:42:21.000Z">
-<meta property="article:modified_time" content="2021-01-12T09:13:47.204Z">
+<meta property="article:modified_time" content="2021-02-05T06:03:18.654Z">
 <meta property="article:author" content="cj2a7t">
 <meta property="article:tag" content="JVM">
 <meta property="article:tag" content="Java">
@@ -195,9 +195,8 @@
 </blockquote>
 <h4 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h4><ul>
 <li><p>每次发版后，集群服务内存使用率低于50%，跑着跑着就会飙到94%以上</p>
-</li>
+<a id="more"></a></li>
 <li><p>服务部分线上出现Java进程会挂掉，pod重启现象。</p>
-<a id="more"></a>
 <h4 id="排查过程"><a href="#排查过程" class="headerlink" title="排查过程"></a>排查过程</h4><blockquote>
 <p>根据上面出现的现象我暂定了一下排查过程</p>
 </blockquote>
@@ -523,6 +522,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
             <input type="checkbox" q-on="click:toggleTag(e)" q-attr="checked:showTags">
           </label>
           <ul class="article-tag-list" q-show="showTags">
+            
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">OKR</a>
+              </li>
+            
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">职业规划</a>
+              </li>
             
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">JVM</a>
